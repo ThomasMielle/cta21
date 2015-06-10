@@ -6,6 +6,8 @@
 #include <QSqlQuery>
 #include <QSqlRecord>
 
+#include <QThread>
+
 namespace Ui {
     class MainWindow;
 }
@@ -23,7 +25,7 @@ private:
 
     // Attributs
 private:
-    QSqlDatabase *database;
+    QSqlDatabase database;
 
     // Fonctions
 private:

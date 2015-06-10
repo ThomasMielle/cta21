@@ -1,46 +1,78 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "centresecours.h"
+#include "engin.h"
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
-    ui->webView->load(QUrl("http://maps.googleapis.com/maps/api/staticmap?zoom=15&size=558x288&maptype=roadmap&markers=color:blue|47.335147,5.067991"));
+    // Variables locales /////////////////////////////////
+    QList<CentreSecours> listeCS;
 
-    // Gestion de la liste des engins du SDIS
-    ui->listEngins->setRowCount(1);
-    ui->listEngins->setColumnCount(10);
+    // Création de la google map /////////////////////////
+    ui->webView->load(QUrl("https://www.google.fr/maps"));
+    //http://maps.googleapis.com/maps/api/staticmap?
+    //center=Dijon,21000
+    //zoom=12
+    //size=641x289
+    //maptype=roadmap
+    //markers=color:blue|47.335147,5.067991
 
-    QTableWidgetItem *CS = new QTableWidgetItem("CIS IS/TILLE");
-    QTableWidgetItem *vsav = new QTableWidgetItem("VSAV");
-    QTableWidgetItem *fptsr = new QTableWidgetItem("FPTSR");
-    QTableWidgetItem *epc = new QTableWidgetItem("EPC");
-    ui->listEngins->setItem(0, 0, CS);
-    vsav->setTextAlignment(Qt::AlignCenter);
-    ui->listEngins->setItem(0, 1, vsav);
-    fptsr->setTextAlignment(Qt::AlignCenter);
-    ui->listEngins->setItem(0, 2, fptsr);
-    epc->setTextAlignment(Qt::AlignCenter);
-    ui->listEngins->setItem(0, 3, epc);
-
-    // Conexion à la BDD
-    database = new QSqlDatabase;
-    database->addDatabase("QSQLITE");
-    database->setDatabaseName("database/database.db");
-
-    database->open();
+    // Conexion à la BDD /////////////////////////////////
+    database = QSqlDatabase::addDatabase("QSQLITE");
+    database.setDatabaseName("../database/base.db");
+    database.open();
     QSqlQuery query;
-    query.exec("SELECT * FROM centres");
 
-    QList<QTableWidgetItem> listeCentres;
-
+    // Création de tous les CS ///////////////////////////
+    query.exec("SELECT nom, numero, adresse, effectif FROM centres ORDER BY numero");
     while (query.next()) {
-        QString nomCentre = query.record().value("nom").toString();
-        QTableWidgetItem *centre = new QTableWidgetItem(nomCentre);
-        ui->listEngins->setItem(0, 0, centre);
+        QString nom = query.record().value("nom").toString();
+        int numero = query.record().value("numero").toInt();
+        QString adresse = query.record().value("adresse").toString();
+        int effectif = query.record().value("effectif").toInt();
+        listeCS << CentreSecours(nom, numero, adresse, effectif);
+    }
+    ui->listEngins->setRowCount(listeCS.count());
+
+    // Création de tous les engins ///////////////////////
+    int nbEnginsMax = 0;
+    for (int i = 0; i < listeCS.count(); i++) {
+        query.prepare("SELECT e.nom, e.armementMin, e.armementMax FROM engins e, centres c WHERE (c.nom = :nomCentre) AND (c.numero = e.numeroCs) ORDER BY e.immatriculation");
+        query.bindValue(":nomCentre",listeCS.at(i).nom);
+        query.exec();
+        int j = 0;
+        while (query.next()) {
+            j++;
+            if (j > nbEnginsMax) {
+                nbEnginsMax = j;
+                ui->listEngins->setColumnCount(nbEnginsMax+1);
+            }
+            QString nom = query.record().value("nom").toString();
+            int armementMin = query.record().value("armementMin").toInt();
+            int armementMax = query.record().value("armementMax").toInt();
+            listeCS.operator [](i).listeEngins << Engin(nom, armementMin, armementMax);
+        }
     }
 
-    database->close();
+    // Affichage des CS et des engins /////////////////////
+    for (int i = 0; i < listeCS.count(); i++) {
+        QTableWidgetItem *centre = new QTableWidgetItem(listeCS.at(i).nom);
+        centre->setTextAlignment(Qt::AlignCenter);
+        ui->listEngins->setItem(i, 0, centre);
+        for (int j = 0; j < listeCS.at(i).listeEngins.count(); j++) {
+            QTableWidgetItem *engin = new QTableWidgetItem(listeCS.at(i).listeEngins.at(j).nom);
+            engin->setTextAlignment(Qt::AlignCenter);
+            engin->setBackgroundColor(QColor(65, 169, 46));
+            engin->setTextColor(QColor(Qt::white));
+            ui->listEngins->setItem(i, j+1, engin);
+        }
+    }
+
+    // Fermeture de la base //////////////////////////////
+    database.close();
 }
 
 MainWindow::~MainWindow()
