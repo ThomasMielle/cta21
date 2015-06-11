@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "formdepart.h"
 #include "centresecours.h"
 #include "engin.h"
 
@@ -8,17 +9,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 {
     ui->setupUi(this);
 
-    // Variables locales /////////////////////////////////
-    QList<CentreSecours> listeCS;
-
     // Création de la google map /////////////////////////
-    ui->webView->load(QUrl("https://www.google.fr/maps"));
-    //http://maps.googleapis.com/maps/api/staticmap?
-    //center=Dijon,21000
-    //zoom=12
-    //size=641x289
-    //maptype=roadmap
-    //markers=color:blue|47.335147,5.067991
+    ui->webView->load(QUrl("http://maps.googleapis.com/maps/api/staticmap?center=Dijon,21000&zoom=12&size=641x289&maptype=roadmap"));
 
     // Conexion à la BDD /////////////////////////////////
     database = QSqlDatabase::addDatabase("QSQLITE");
@@ -73,9 +65,78 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     // Fermeture de la base //////////////////////////////
     database.close();
+
+    // Lancement d'un nouvel appel
+    nouvelAppel();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::on_listEngins_itemClicked(QTableWidgetItem *item)
+{
+    QString nomCs = item->text();
+    for (int i = 0; i < listeCS.count(); i++) {
+        if (listeCS.at(i).nom == nomCs) {
+            ui->webView->load(QUrl("http://maps.googleapis.com/maps/api/staticmap?zoom=14&size=641x289&maptype=roadmap&markers=" + listeCS.at(i).adresse));
+            //color:blue|
+        }
+    }
+}
+
+void MainWindow::nouvelAppel()
+{
+    QIcon icone = QIcon(":/images/images/telAppel.jpg");
+    QListWidgetItem *appel = new QListWidgetItem(icone,"Appel entrant...");
+    ui->listAppels->insertItem(0, appel);
+}
+
+void MainWindow::on_listAppels_itemClicked(QListWidgetItem *item)
+{
+    if (item->text() == "Appel entrant...") {
+        for (int i = 0; i < ui->listAppels->count(); i++) {
+            if (ui->listAppels->item(i) == item) {
+                ui->listAppels->takeItem(i);
+                listeInter << interventionAleatoire();
+                QListWidgetItem *intervention = new QListWidgetItem(listeInter.last().desc);
+                ui->listAppels->insertItem(i, intervention);
+                ui->webView->load(QUrl("http://maps.googleapis.com/maps/api/staticmap?zoom=14&size=641x289&maptype=roadmap&markers=" + listeInter.last().lieu));
+            }
+        }
+    }
+    else {
+
+    }
+}
+
+Intervention MainWindow::interventionAleatoire()
+{
+    database.open();
+    QSqlQuery query;
+    Intervention intervention = Intervention(NULL, NULL, NULL, NULL);
+    query.prepare("SELECT numero, type, lieu, description FROM interventions WHERE numero = :numero");
+    query.bindValue(":numero", 1);
+    query.exec();
+    while (query.next()) {
+        int numero = query.record().value("numero").toInt();
+        QString type = query.record().value("type").toString();
+        QString lieu = query.record().value("lieu").toString();
+        QString desc = query.record().value("description").toString();
+        intervention = Intervention(numero, type, lieu, desc);
+    }
+    database.close();
+    return intervention;
+}
+
+void MainWindow::updateInterventions()
+{
+
+}
+
+void MainWindow::on_boutonNouveauDepart_clicked()
+{
+    FormDepart fenetre;
+    fenetre.exec();
 }

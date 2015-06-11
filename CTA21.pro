@@ -15,13 +15,18 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     centresecours.cpp \
-    engin.cpp
+    engin.cpp \
+    intervention.cpp \
+    formdepart.cpp
 
 HEADERS  += mainwindow.h \
     centresecours.h \
-    engin.h
+    engin.h \
+    intervention.h \
+    formdepart.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    formdepart.ui
 
 RESOURCES += \
     ressources.qrc

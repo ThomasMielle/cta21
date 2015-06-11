@@ -1,3 +1,5 @@
 <RCC>
-    <qresource prefix="/images"/>
+    <qresource prefix="/images">
+        <file>images/telAppel.jpg</file>
+    </qresource>
 </RCC>
